@@ -981,7 +981,7 @@ namespace Microsoft.SqlTools.ServiceLayer.Connection.ReliableConnection
                 }
                 else
                 {
-                    finalCmd = String.Format(CultureInfo.InvariantCulture, sqlCommand, "master");
+                    finalCmd = String.Format(CultureInfo.InvariantCulture, sqlCommand, CommonConstants.MasterDatabaseName);
                 }
 
                 object retValue = ExecuteScalar(connection, finalCmd);
