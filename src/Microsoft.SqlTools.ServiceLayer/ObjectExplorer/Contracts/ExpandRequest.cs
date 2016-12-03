@@ -20,7 +20,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Contracts
         /// <summary>
         /// Path identifying the node to expand. See <see cref="NodeInfo.NodePath"/> for details
         /// </summary>
-        public NodeInfo[] NodePath { get; set; }
+        public string[] NodePath { get; set; }
     }
 
     /// <summary>
