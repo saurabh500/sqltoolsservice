@@ -4,6 +4,9 @@
 #load "scripts/archiving.cake"
 #load "scripts/artifacts.cake"
 
+#tool "nuget:?package=Mono.TextTransform"
+
+using Cake.Common.IO;
 using System.ComponentModel;
 using System.Net;
 using Newtonsoft.Json;
@@ -538,6 +541,19 @@ Task("SRGen")
 		Information("{0}", dotnetArgs);
 		Run(dotnetcli, dotnetArgs)
 			.ExceptionOnError("Failed to run SRGen.");
+	}
+});
+
+/// <summary>
+/// Executes T4Template-based code generators
+/// </summary>
+Task("CodeGen")
+	.Does(() =>
+{
+	var t4Files = GetFiles(sourceFolder + "/**/*.tt");
+	foreach(var t4Template in t4Files)
+	{
+		TransformTemplate(t4Template, new TextTransformSettings {});
 	}
 });
 

@@ -13,20 +13,21 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
     /// <summary>
     /// Server node implementation with support for 
     /// </summary>
-    public class ServerNode : Node
+    public class ServerNode : TreeNode
     {
         private ConnectionSummary connectionSummary;
         private ServerInfo serverInfo;
 
         public ServerNode(ConnectionSummary connectionSummary, ServerInfo serverInfo)
+            : base(null)
         {
             Validate.IsNotNull(nameof(connectionSummary), connectionSummary);
             Validate.IsNotNull(nameof(serverInfo), serverInfo);
 
             this.connectionSummary = connectionSummary;
             this.serverInfo = serverInfo;
+            NodeValue = connectionSummary.ServerName;
             IsLeaf = false;
-            NodePath = new string[] { connectionSummary.ServerName };
             NodeType = NodeTypes.Server.ToString();
             Label = GetConnectionLabel();
         }

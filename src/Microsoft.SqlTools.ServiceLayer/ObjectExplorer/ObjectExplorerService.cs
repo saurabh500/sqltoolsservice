@@ -197,7 +197,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer
             //private const int Cachesize = 10000;
             //private Cache<string, NodeMapping> cache;
 
-            public ObjectExplorerSession(string uri, Node root)
+            public ObjectExplorerSession(string uri, TreeNode root)
             {
                 Validate.IsNotNullOrEmptyString("uri", uri);
                 Validate.IsNotNull("root", root);
@@ -206,11 +206,11 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer
             }
             
             public string Uri { get; private set; }
-            public Node Root { get; private set; }
+            public TreeNode Root { get; private set; }
 
             public static ObjectExplorerSession CreateSession(ConnectionCompleteParams response)
             {
-                Node serverNode = new ServerNode(response.ConnectionSummary, response.ServerInfo);
+                TreeNode serverNode = new ServerNode(response.ConnectionSummary, response.ServerInfo);
                 return new ObjectExplorerSession(response.OwnerUri, serverNode);
             }
             

@@ -4,6 +4,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 using Microsoft.SqlTools.ServiceLayer.Connection.Contracts;
 using Microsoft.SqlTools.ServiceLayer.ObjectExplorer;
 using Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Contracts;
@@ -46,15 +47,16 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
             ServerNode node = new ServerNode(defaultConnectionSummary, defaultServerInfo);
             // Then expect all fields set correctly
             Assert.False(node.IsLeaf, "Server node should never be a leaf");
-            
-            string expectedLabel = defaultConnectionSummary.ServerName + " (SQL Server " + defaultServerInfo.ServerVersion + " - " 
+            Assert.Equal(defaultConnectionSummary.ServerName, node.NodeValue);
+
+            string expectedLabel = defaultConnectionSummary.ServerName + " (SQL Server " + defaultServerInfo.ServerVersion + " - "
                 + defaultConnectionSummary.UserName + ")";
             Assert.Equal(expectedLabel, node.Label);
 
             Assert.Equal(NodeTypes.Server.ToString(), node.NodeType);
-
-            Assert.Equal(1, node.NodePath.Length);
-            Assert.Equal(defaultConnectionSummary.ServerName, node.NodePath[0]);
+            string[] nodePath = node.GetNodePath();
+            Assert.Equal(1, nodePath.Length);
+            Assert.Equal(defaultConnectionSummary.ServerName, nodePath[0]);
         }
 
         [Fact]
@@ -92,10 +94,10 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
 
             // Then expect label to include db name 
             expectedLabel = defaultConnectionSummary.ServerName + " (SQL Server " + defaultServerInfo.ServerVersion + " - "
-                + defaultConnectionSummary.UserName + ", "+defaultConnectionSummary.DatabaseName + ")";
+                + defaultConnectionSummary.UserName + ", " + defaultConnectionSummary.DatabaseName + ")";
             Assert.Equal(expectedLabel, node.Label);
         }
-        
+
         [Fact]
         public void ToNodeInfoIncludeAllFields()
         {
@@ -104,7 +106,68 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
             // When converting to NodeInfo
             NodeInfo info = node.ToNodeInfo();
             // Then all fields should match
-
+            Assert.Equal(node.IsLeaf, info.IsLeaf);
+            Assert.Equal(node.Label, info.Label);
+            Assert.Equal(node.NodeType, info.NodeType);
+            string[] nodePath = node.GetNodePath();
+            Assert.Equal(nodePath.Length, info.NodePath.Length);
+            for (int i = 0; i < nodePath.Length; i++)
+            {
+                Assert.Equal(nodePath[i], info.NodePath[i]);
+            }
         }
+
+        [Fact]
+        public void AddChildShouldSetParent()
+        {
+            TreeNode parent = new TreeNode("parent");
+            TreeNode child = new TreeNode("child");
+            Assert.Null(child.Parent);
+            parent.AddChild(child);
+            Assert.Equal(parent, child.Parent);
+        }
+        
+        [Fact]
+        public void GetChildrenShouldReturnReadonlyList()
+        {
+            TreeNode node = new TreeNode("parent");
+            IList<TreeNode> children = node.GetChildren();
+            Assert.Throws<NotSupportedException>(() => children.Add(new TreeNode("child")));
+        }
+
+        [Fact]
+        public void GetChildrenShouldReturnAddedNodesInOrder()
+        {
+            TreeNode parent = new TreeNode("parent");
+            TreeNode[] expectedKids = new TreeNode[] { new TreeNode("1"), new TreeNode("2") };
+            foreach (TreeNode child in expectedKids)
+            {
+                parent.AddChild(child);
+            }
+            IList<TreeNode> children = parent.GetChildren();
+            Assert.Equal(expectedKids.Length, children.Count);
+            for (int i = 0; i < expectedKids.Length; i++)
+            {
+                Assert.Equal(expectedKids[i], children[i]);
+            }
+        }
+
+        public void MultiLevelTreeShouldFormatPath()
+        {
+            TreeNode root = new TreeNode("root");
+            Assert.Equal(new [] { "root" }, root.GetNodePath());
+
+            TreeNode level1Child1 = new TreeNode("L1C1");
+            TreeNode level1Child2 = new TreeNode("L1C2");
+            root.AddChild(level1Child1);
+            root.AddChild(level1Child2);
+            Assert.Equal(new[] { "root", "L1C1" }, level1Child1.GetNodePath());
+            Assert.Equal(new[] { "root", "L1C2" }, level1Child2.GetNodePath());
+
+            TreeNode level2Child1 = new TreeNode("L2C2");
+            level1Child1.AddChild(level2Child1);
+            Assert.Equal(new[] { "root", "L1C1", "L2C2" }, level2Child1.GetNodePath());
+        }
+        
     }
 }
