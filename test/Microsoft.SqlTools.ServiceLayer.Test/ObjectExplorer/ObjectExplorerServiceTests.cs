@@ -10,6 +10,7 @@ using Microsoft.SqlTools.ServiceLayer.Connection.Contracts;
 using Microsoft.SqlTools.ServiceLayer.Hosting.Protocol;
 using Microsoft.SqlTools.ServiceLayer.ObjectExplorer;
 using Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Contracts;
+using Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes;
 using Microsoft.SqlTools.ServiceLayer.Test.Utility;
 using Microsoft.SqlTools.Test.Utility;
 using Moq;
@@ -102,7 +103,7 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
         private void VerifyServerNode(NodeInfo serverNode, ConnectionDetails details)
         {
             Assert.NotNull(serverNode);
-            Assert.Equal(NodeTypes.Server.ToString(), serverNode.NodeType);
+            Assert.Equal(NodeTypes.ServerInstance.ToString(), serverNode.NodeType);
             Assert.Equal(1, serverNode.NodePath.Length);
             Assert.Equal(details.ServerName, serverNode.NodePath[0]);
             Assert.True(serverNode.Label.Contains(details.ServerName));

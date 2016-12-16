@@ -46,14 +46,14 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
             // Given a server node with valid inputs
             ServerNode node = new ServerNode(defaultConnectionSummary, defaultServerInfo);
             // Then expect all fields set correctly
-            Assert.False(node.IsLeaf, "Server node should never be a leaf");
+            Assert.False(node.IsAlwaysLeaf, "Server node should never be a leaf");
             Assert.Equal(defaultConnectionSummary.ServerName, node.NodeValue);
 
             string expectedLabel = defaultConnectionSummary.ServerName + " (SQL Server " + defaultServerInfo.ServerVersion + " - "
                 + defaultConnectionSummary.UserName + ")";
             Assert.Equal(expectedLabel, node.Label);
 
-            Assert.Equal(NodeTypes.Server.ToString(), node.NodeType);
+            Assert.Equal(NodeTypes.ServerInstance.ToString(), node.NodeType);
             string[] nodePath = node.GetNodePath();
             Assert.Equal(1, nodePath.Length);
             Assert.Equal(defaultConnectionSummary.ServerName, nodePath[0]);
@@ -106,7 +106,7 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
             // When converting to NodeInfo
             NodeInfo info = node.ToNodeInfo();
             // Then all fields should match
-            Assert.Equal(node.IsLeaf, info.IsLeaf);
+            Assert.Equal(node.IsAlwaysLeaf, info.IsLeaf);
             Assert.Equal(node.Label, info.Label);
             Assert.Equal(node.NodeType, info.NodeType);
             string[] nodePath = node.GetNodePath();

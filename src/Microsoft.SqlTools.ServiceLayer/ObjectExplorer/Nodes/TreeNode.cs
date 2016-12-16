@@ -21,7 +21,14 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
         private TreeNode parent;
         private string[] nodePath;
         private string label;
-        
+
+        /// <summary>
+        /// Constructor with no required inputs
+        /// </summary>
+        public TreeNode()
+        {
+
+        }
         /// <summary>
         /// Constructor that accepts a label to identify the node
         /// </summary>
@@ -43,6 +50,11 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
         /// The type of the node - for example Server, Database, Folder, Table
         /// </summary>
         public string NodeType { get; set; }
+
+        /// <summary>
+        /// Enum defining the type of the node - for example Server, Database, Folder, Table
+        /// </summary>
+        public NodeTypes NodeTypeId { get; set; }
 
         /// <summary>
         /// Label to display to the user, describing this node.
@@ -69,7 +81,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
         /// Is this a leaf node (in which case no children can be generated) or
         /// is it expandable?
         /// </summary>
-        public bool IsLeaf { get; set; }
+        public bool IsAlwaysLeaf { get; set; }
 
         /// <summary>
         /// Parent of this node
@@ -129,7 +141,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
         {
             return new NodeInfo()
             {
-                IsLeaf = this.IsLeaf,
+                IsLeaf = this.IsAlwaysLeaf,
                 Label = this.Label,
                 NodePath = this.GetNodePath(),
                 NodeType = this.NodeType

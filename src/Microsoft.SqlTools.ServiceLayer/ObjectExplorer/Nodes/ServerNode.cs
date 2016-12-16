@@ -19,7 +19,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
         private ServerInfo serverInfo;
 
         public ServerNode(ConnectionSummary connectionSummary, ServerInfo serverInfo)
-            : base(null)
+            : base()
         {
             Validate.IsNotNull(nameof(connectionSummary), connectionSummary);
             Validate.IsNotNull(nameof(serverInfo), serverInfo);
@@ -27,8 +27,8 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
             this.connectionSummary = connectionSummary;
             this.serverInfo = serverInfo;
             NodeValue = connectionSummary.ServerName;
-            IsLeaf = false;
-            NodeType = NodeTypes.Server.ToString();
+            IsAlwaysLeaf = false;
+            NodeType = NodeTypes.ServerInstance.ToString();
             Label = GetConnectionLabel();
         }
         
