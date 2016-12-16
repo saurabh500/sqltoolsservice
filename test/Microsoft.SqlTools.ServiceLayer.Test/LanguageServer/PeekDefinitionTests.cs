@@ -2,24 +2,31 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.IO;
 using System;
+using System.IO;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.SqlParser.Binder;
+using Microsoft.SqlServer.Management.SqlParser.Intellisense;
 using Microsoft.SqlServer.Management.SqlParser.MetadataProvider;
 using Microsoft.SqlServer.Management.SqlParser.Parser;
 using Microsoft.SqlTools.ServiceLayer.Connection;
 using Microsoft.SqlTools.ServiceLayer.Hosting.Protocol;
+using Microsoft.SqlTools.ServiceLayer.Hosting.Protocol.Contracts;
 using Microsoft.SqlTools.ServiceLayer.LanguageServices;
+using Microsoft.SqlTools.ServiceLayer.LanguageServices.Contracts;
 using Microsoft.SqlTools.ServiceLayer.SqlContext;
+using Microsoft.SqlTools.ServiceLayer.QueryExecution;
 using Microsoft.SqlTools.ServiceLayer.Test.QueryExecution;
 using Microsoft.SqlTools.ServiceLayer.Workspace;
 using Microsoft.SqlTools.ServiceLayer.Workspace.Contracts;
 using Microsoft.SqlTools.Test.Utility;
-using Location = Microsoft.SqlTools.ServiceLayer.Workspace.Contracts.Location;
 using Moq;
 using Xunit;
+using Location = Microsoft.SqlTools.ServiceLayer.Workspace.Contracts.Location;
 
 namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
 {
@@ -45,10 +52,6 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
         private TextDocumentPosition textDocument;
 
         private const string OwnerUri = "testFile1";
-
-        private const string ViewOwnerUri = "testFile2";
-
-        private const string TriggerOwnerUri = "testFile3";
 
         private void InitializeTestObjects()
         {
@@ -92,6 +95,9 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
             requestContext = new Mock<RequestContext<Location[]>>();
             requestContext.Setup(rc => rc.SendResult(It.IsAny<Location[]>()))
                 .Returns(Task.FromResult(0));
+            requestContext.Setup(rc => rc.SendError(It.IsAny<DefinitionError>())).Returns(Task.FromResult(0));;
+            requestContext.Setup(r => r.SendEvent(It.IsAny<EventType<TelemetryParams>>(), It.IsAny<TelemetryParams>())).Returns(Task.FromResult(0));;
+            requestContext.Setup(r => r.SendEvent(It.IsAny<EventType<StatusChangeParams>>(), It.IsAny<StatusChangeParams>())).Returns(Task.FromResult(0));;
 
             // setup the IBinder mock
             binder = new Mock<IBinder>();
@@ -102,7 +108,7 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
 
             var testScriptParseInfo = new ScriptParseInfo();
             LanguageService.Instance.AddOrUpdateScriptParseInfo(this.testScriptUri, testScriptParseInfo);
-            testScriptParseInfo.IsConnected = true;
+            testScriptParseInfo.IsConnected = false;
             testScriptParseInfo.ConnectionKey = LanguageService.Instance.BindingQueue.AddConnectionContext(connectionInfo);
 
             // setup the binding context object
@@ -114,43 +120,253 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
 
 
         /// <summary>
-        /// Tests the definition event handler. When called with no active connection, no definition is sent
+        /// Tests the definition event handler. When called with no active connection, an error is sent
         /// </summary>
         [Fact]
-        public void DefinitionsHandlerWithNoConnectionTest()
+        public async Task DefinitionsHandlerWithNoConnectionTest()
         {
+            TestObjects.InitializeTestServices();
             InitializeTestObjects();
-            // request the completion list
-            Task handleCompletion = LanguageService.HandleDefinitionRequest(textDocument, requestContext.Object);
-            handleCompletion.Wait(TaskTimeout);
-
-            // verify that send result was not called
+            // request definition
+            var definitionTask = await Task.WhenAny(LanguageService.HandleDefinitionRequest(textDocument, requestContext.Object), Task.Delay(TaskTimeout));
+            await definitionTask;
+            // verify that send result was not called and send error was called
             requestContext.Verify(m => m.SendResult(It.IsAny<Location[]>()), Times.Never());
-
+            requestContext.Verify(m => m.SendError(It.IsAny<DefinitionError>()), Times.Once());
         }
 
+        /// <summary>
+        /// Tests creating location objects on windows and non-windows systems
+        /// </summary>
+        [Fact]
+        public void GetLocationFromFileForValidFilePathTest()
+        {
+            String filePath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "C:\\test\\script.sql" : "/test/script.sql";
+            PeekDefinition peekDefinition = new PeekDefinition(null, null);
+            Location[] locations = peekDefinition.GetLocationFromFile(filePath, 0);
+
+            String expectedFilePath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "file:///C:/test/script.sql" : "file:/test/script.sql";
+            Assert.Equal(locations[0].Uri, expectedFilePath);
+        }
+
+        /// <summary>
+        /// Test PeekDefinition.GetSchemaFromDatabaseQualifiedName with a valid database name
+        /// </summary>
+        [Fact]
+        public void GetSchemaFromDatabaseQualifiedNameWithValidNameTest()
+        {
+            PeekDefinition peekDefinition = new PeekDefinition(null, null);
+            string validDatabaseQualifiedName = "master.test.test_table";
+            string objectName = "test_table";
+            string expectedSchemaName = "test";
+
+            string actualSchemaName = peekDefinition.GetSchemaFromDatabaseQualifiedName(validDatabaseQualifiedName, objectName);
+            Assert.Equal(actualSchemaName, expectedSchemaName);
+        }
+
+        /// <summary>
+        /// Test PeekDefinition.GetSchemaFromDatabaseQualifiedName with a valid object name and no schema
+        /// </summary>
+
+        [Fact]
+        public void GetSchemaFromDatabaseQualifiedNameWithNoSchemaTest()
+        {
+            PeekDefinition peekDefinition = new PeekDefinition(null, null);
+            string validDatabaseQualifiedName = "test_table";
+            string objectName = "test_table";
+            string expectedSchemaName = "dbo";
+
+            string actualSchemaName = peekDefinition.GetSchemaFromDatabaseQualifiedName(validDatabaseQualifiedName, objectName);
+            Assert.Equal(actualSchemaName, expectedSchemaName);
+        }
+
+        /// <summary>
+        /// Test PeekDefinition.GetSchemaFromDatabaseQualifiedName with a invalid database name
+        /// </summary>
+        [Fact]
+        public void GetSchemaFromDatabaseQualifiedNameWithInvalidNameTest()
+        {
+            PeekDefinition peekDefinition = new PeekDefinition(null, null);
+            string validDatabaseQualifiedName = "x.y.z";
+            string objectName = "test_table";
+            string expectedSchemaName = "dbo";
+
+            string actualSchemaName = peekDefinition.GetSchemaFromDatabaseQualifiedName(validDatabaseQualifiedName, objectName);
+            Assert.Equal(actualSchemaName, expectedSchemaName);
+        }
+
+        /// <summary>
+        /// Test Deletion of peek definition scripts for a valid temp folder that exists
+        /// </summary>
+        [Fact]
+        public void DeletePeekDefinitionScriptsTest()
+        {
+            PeekDefinition peekDefinition = new PeekDefinition(null, null);
+            var languageService = LanguageService.Instance;
+            Assert.True(Directory.Exists(FileUtils.PeekDefinitionTempFolder));
+            languageService.DeletePeekDefinitionScripts();
+            Assert.False(Directory.Exists(FileUtils.PeekDefinitionTempFolder));
+        }
+
+        /// <summary>
+        /// Test Deletion of peek definition scripts for a temp folder that does not exist
+        /// </summary>
+        [Fact]
+        public void DeletePeekDefinitionScriptsWhenFolderDoesNotExistTest()
+        {
+            var languageService = LanguageService.Instance;
+            PeekDefinition peekDefinition = new PeekDefinition(null, null);
+            FileUtils.SafeDirectoryDelete(FileUtils.PeekDefinitionTempFolder, true);
+            Assert.False(Directory.Exists(FileUtils.PeekDefinitionTempFolder));
+            // Expected not to throw any exception
+            languageService.DeletePeekDefinitionScripts();        
+        }
+         
 #if LIVE_CONNECTION_TESTS
         /// <summary>
         /// Test get definition for a table object with active connection
         /// </summary>
         [Fact]
-        public void GetTableDefinitionTest()
+        public void GetValidTableDefinitionTest()
         {
-            // Get live connectionInfo
+            // Get live connectionInfo and serverConnection
             ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
-            PeekDefinition peekDefinition = new PeekDefinition(connInfo);
-            string objectName = "test_table";
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
+            string objectName = "spt_monitor";
+
             string schemaName = null;
             string objectType = "TABLE";
 
+            // Get locations for valid table object
             Location[] locations = peekDefinition.GetSqlObjectDefinition(peekDefinition.GetTableScripts, objectName, schemaName, objectType);
             Assert.NotNull(locations);
             Cleanup(locations);
         }
 
+        /// <summary>
+        /// Test get definition for a invalid table object with active connection
+        /// </summary>
         [Fact]
-        public void GetUnsupportedDefinitionForFullScript()
+        public void GetTableDefinitionInvalidObjectTest()
         {
+            // Get live connectionInfo and serverConnection
+            ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
+            string objectName = "test_invalid";
+            string schemaName = null;
+            string objectType = "TABLE";
+
+            // Get locations for invalid table object
+            Location[] locations = peekDefinition.GetSqlObjectDefinition(peekDefinition.GetTableScripts, objectName, schemaName, objectType);
+            Assert.Null(locations);
+        }
+
+        /// <summary>
+        /// Test get definition for a valid table object with schema and active connection
+        /// </summary>
+        [Fact]
+        public void GetTableDefinitionWithSchemaTest()
+        {
+            // Get live connectionInfo and serverConnection
+            ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
+            string objectName = "spt_monitor";
+
+            string schemaName = "dbo";
+            string objectType = "TABLE";
+
+            // Get locations for valid table object with schema name
+            Location[] locations = peekDefinition.GetSqlObjectDefinition(peekDefinition.GetTableScripts, objectName, schemaName, objectType);
+            Assert.NotNull(locations);
+            Cleanup(locations);
+        }
+
+        /// <summary>
+        /// Test GetDefinition with an unsupported type(schema - dbo). Expect a error result.
+        /// </summary>
+        [Fact]
+        public void GetUnsupportedDefinitionErrorTest()
+        {
+            ScriptFile scriptFile;
+            TextDocumentPosition textDocument = new TextDocumentPosition
+            {
+                TextDocument = new TextDocumentIdentifier { Uri = OwnerUri },
+                Position = new Position
+                {
+                    Line = 0,
+                    // test for 'dbo'
+                    Character = 16
+                }
+            };
+            ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfo(out scriptFile);
+            scriptFile.Contents = "select * from dbo.func ()";
+            var languageService = new LanguageService();
+            ScriptParseInfo scriptInfo = new ScriptParseInfo { IsConnected = true };
+            languageService.ScriptParseInfoMap.Add(OwnerUri, scriptInfo);
+
+            // When I call the language service
+            var result = languageService.GetDefinition(textDocument, scriptFile, connInfo);
+
+            // Then I expect null locations and an error to be reported
+            Assert.NotNull(result);
+            Assert.True(result.IsErrorResult);
+        }
+
+        /// <summary>
+        /// Get Definition for a object with no definition. Expect a error result
+        /// </summary>
+        [Fact]
+        public void GetDefinitionWithNoResultsFoundError()
+        {
+            ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
+            string objectName = "from";
+
+            List<Declaration> declarations = new List<Declaration>();
+            DefinitionResult result = peekDefinition.GetScript(declarations, objectName, null);
+
+            Assert.NotNull(result);
+            Assert.True(result.IsErrorResult);
+            Assert.Equal(SR.PeekDefinitionNoResultsError, result.Message);
+        }
+    
+        /// <summary>
+        /// Test GetDefinition with a forced timeout. Expect a error result.
+        /// </summary>
+        [Fact]
+        public void GetDefinitionTimeoutTest()
+        {
+            // Given a binding queue that will automatically time out
+            var languageService = new LanguageService();
+            Mock<ConnectedBindingQueue> queueMock = new Mock<ConnectedBindingQueue>();
+            languageService.BindingQueue = queueMock.Object;
+            ManualResetEvent mre = new ManualResetEvent(true); // Do not block
+            Mock<QueueItem> itemMock = new Mock<QueueItem>();
+            itemMock.Setup(i => i.ItemProcessed).Returns(mre);
+            
+            DefinitionResult timeoutResult = null;
+            
+            queueMock.Setup(q => q.QueueBindingOperation(
+                It.IsAny<string>(),
+                It.IsAny<Func<IBindingContext, CancellationToken, object>>(),
+                It.IsAny<Func<IBindingContext, object>>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>()))
+            .Callback<string, Func<IBindingContext, CancellationToken, object>, Func<IBindingContext, object>, int?, int?>(
+                (key, bindOperation, timeoutOperation, blah, blah2) => 
+            {
+                timeoutResult = (DefinitionResult) timeoutOperation((IBindingContext)null);
+                itemMock.Object.Result = timeoutResult;
+            })
+            .Returns(() => itemMock.Object);
 
             ScriptFile scriptFile;
             TextDocumentPosition textDocument = new TextDocumentPosition
@@ -165,22 +381,29 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
             ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfo(out scriptFile);
             scriptFile.Contents = "select * from dbo.func ()";
 
-            var languageService = LanguageService.Instance;
             ScriptParseInfo scriptInfo = new ScriptParseInfo { IsConnected = true };
             languageService.ScriptParseInfoMap.Add(OwnerUri, scriptInfo);
 
-            var locations = languageService.GetDefinition(textDocument, scriptFile, connInfo);
-            Assert.Null(locations);
+            // When I call the language service
+            var result = languageService.GetDefinition(textDocument, scriptFile, connInfo);
+
+            // Then I expect null locations and an error to be reported
+            Assert.NotNull(result);
+            Assert.True(result.IsErrorResult);
+            // Check timeout message
+            Assert.Equal(SR.PeekDefinitionTimedoutError, result.Message);
         }
 
         /// <summary>
         /// Test get definition for a view object with active connection
         /// </summary>
         [Fact]
-        public void GetViewDefinitionTest()
+        public void GetValidViewDefinitionTest()
         {
             ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
-            PeekDefinition peekDefinition = new PeekDefinition(connInfo);
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
             string objectName = "objects";
             string schemaName = "sys";
             string objectType = "VIEW";
@@ -196,8 +419,11 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
         [Fact]
         public void GetViewDefinitionInvalidObjectTest()
         {
+            // Get live connectionInfo and serverConnection
             ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
-            PeekDefinition peekDefinition = new PeekDefinition(connInfo);
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
             string objectName = "objects";
             string schemaName = null;
             string objectType = "VIEW";
@@ -212,9 +438,13 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
         [Fact]
         public void GetStoredProcedureDefinitionTest()
         {
+            // Get live connectionInfo and serverConnection
             ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
-            PeekDefinition peekDefinition = new PeekDefinition(connInfo);
-            string objectName = "SP1";
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
+            string objectName = "sp_MSrepl_startup";
+
             string schemaName = "dbo";
             string objectType = "PROCEDURE";
 
@@ -229,8 +459,11 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
         [Fact]
         public void GetStoredProcedureDefinitionFailureTest()
         {
+            // Get live connectionInfo and serverConnection
             ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
-            PeekDefinition peekDefinition = new PeekDefinition(connInfo);
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
             string objectName = "SP2";
             string schemaName = "dbo";
             string objectType = "PROCEDURE";
@@ -245,9 +478,12 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.LanguageServices
         [Fact]
         public void GetStoredProcedureDefinitionWithoutSchemaTest()
         {
+            // Get live connectionInfo and serverConnection
             ConnectionInfo connInfo = TestObjects.InitLiveConnectionInfoForDefinition();
-            PeekDefinition peekDefinition = new PeekDefinition(connInfo);
-            string objectName = "SP1";
+            ServerConnection serverConnection = TestObjects.InitLiveServerConnectionForDefinition(connInfo);
+
+            PeekDefinition peekDefinition = new PeekDefinition(serverConnection, connInfo);
+            string objectName = "sp_MSrepl_startup";
             string schemaName = null;
             string objectType = "PROCEDURE";
 
