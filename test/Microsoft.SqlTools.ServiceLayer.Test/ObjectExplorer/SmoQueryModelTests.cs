@@ -31,7 +31,7 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
         }
         
         [Fact]
-        public void ShouldtFindQuerierIfInExtensionList()
+        public void ShouldFindQuerierIfInExtensionList()
         {
             VerifyQuerierLookup(typeof(Table), typeof(SqlTableQuerier), expectExists: true);
         }
