@@ -309,6 +309,30 @@ namespace Microsoft.SqlTools.ServiceLayer
             }
         }
 
+        public static string QueryServiceSaveAsResultSetNotComplete
+        {
+            get
+            {
+                return Keys.GetString(Keys.QueryServiceSaveAsResultSetNotComplete);
+            }
+        }
+
+        public static string QueryServiceSaveAsMiscStartingError
+        {
+            get
+            {
+                return Keys.GetString(Keys.QueryServiceSaveAsMiscStartingError);
+            }
+        }
+
+        public static string QueryServiceSaveAsInProgress
+        {
+            get
+            {
+                return Keys.GetString(Keys.QueryServiceSaveAsInProgress);
+            }
+        }
+
         public static string QueryServiceResultSetNotRead
         {
             get
@@ -1760,6 +1784,11 @@ namespace Microsoft.SqlTools.ServiceLayer
             return Keys.GetString(Keys.QueryServiceQueryFailed, message);
         }
 
+        public static string QueryServiceSaveAsFail(string fileName, string message)
+        {
+            return Keys.GetString(Keys.QueryServiceSaveAsFail, fileName, message);
+        }
+
         public static string PeekDefinitionAzureError(string errorMessage)
         {
             return Keys.GetString(Keys.PeekDefinitionAzureError, errorMessage);
@@ -1912,6 +1941,18 @@ namespace Microsoft.SqlTools.ServiceLayer
 
 
             public const string QueryServiceResultSetReaderNull = "QueryServiceResultSetReaderNull";
+
+
+            public const string QueryServiceSaveAsResultSetNotComplete = "QueryServiceSaveAsResultSetNotComplete";
+
+
+            public const string QueryServiceSaveAsMiscStartingError = "QueryServiceSaveAsMiscStartingError";
+
+
+            public const string QueryServiceSaveAsInProgress = "QueryServiceSaveAsInProgress";
+
+
+            public const string QueryServiceSaveAsFail = "QueryServiceSaveAsFail";
 
 
             public const string QueryServiceResultSetNotRead = "QueryServiceResultSetNotRead";
@@ -2481,6 +2522,12 @@ namespace Microsoft.SqlTools.ServiceLayer
             public static string GetString(string key, object arg0)
             {
                 return string.Format(global::System.Globalization.CultureInfo.CurrentCulture, resourceManager.GetString(key, _culture), arg0);
+            }
+
+
+            public static string GetString(string key, object arg0, object arg1)
+            {
+                return string.Format(global::System.Globalization.CultureInfo.CurrentCulture, resourceManager.GetString(key, _culture), arg0, arg1);
             }
 
 
