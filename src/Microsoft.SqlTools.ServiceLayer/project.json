@@ -2,7 +2,7 @@
   "name": "Microsoft.SqlTools.ServiceLayer",
   "version": "1.0.0-*",
   "buildOptions": {
-    "debugType": "portable",
+    "debugType": "full",
     "emitEntryPoint": true
   },
   "configurations": {
@@ -30,7 +30,9 @@
     "Microsoft.NETCore.DotNetHostPolicy": "1.0.1",
     "System.Diagnostics.Process": "4.1.0",
     "System.Threading.Thread": "4.0.0",
-    "System.Composition": "1.0.31"
+    "System.Composition": "1.0.31",
+    "Microsoft.DotNet.ProjectModel": "1.0.0-rc4-003206",
+    "System.Runtime.Loader": "4.0.0-beta-23516"
   },
   "frameworks": {
     "netcoreapp1.0": {

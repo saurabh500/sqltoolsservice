@@ -10,6 +10,7 @@ using Microsoft.SqlTools.ServiceLayer.Connection;
 using Microsoft.SqlTools.ServiceLayer.QueryExecution;
 using Microsoft.SqlTools.ServiceLayer.Credentials;
 using Microsoft.SqlTools.ServiceLayer.Utility;
+using Microsoft.SqlTools.ServiceLayer.Extensibility;
 
 namespace Microsoft.SqlTools.ServiceLayer
 {
@@ -56,5 +57,10 @@ namespace Microsoft.SqlTools.ServiceLayer
             serviceHost.Initialize();
             serviceHost.WaitForExit();
         }
+
+        //private IMultiServiceProvider InitializeServiceProvider(ServiceHost serviceHost)
+        //{
+        //    return provider;
+        //}
     }
 }

@@ -5,8 +5,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Contracts;
+using Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel;
 using Microsoft.SqlTools.ServiceLayer.Utility;
 
 namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
@@ -15,12 +18,13 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
     /// Base class for elements in the object explorer tree. Provides common methods for tree navigation
     /// and other core functionality
     /// </summary>
-    public class TreeNode
+    public class TreeNode : IComparable<TreeNode>
     {
-        private List<TreeNode> children = new List<TreeNode>();
+        private NodeObservableCollection children = new NodeObservableCollection();
         private TreeNode parent;
         private string[] nodePath;
         private string label;
+        private ObjectExplorerService objectExplorerService;
 
         /// <summary>
         /// Constructor with no required inputs
@@ -29,6 +33,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
         {
 
         }
+
         /// <summary>
         /// Constructor that accepts a label to identify the node
         /// </summary>
@@ -38,9 +43,8 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
             // We intentionally do not valid this being null or empty since
             // some nodes may need to set it 
             NodeValue = value;
-
         }
-
+        
         /// <summary>
         /// Value describing this node
         /// </summary>
@@ -82,6 +86,12 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
         /// is it expandable?
         /// </summary>
         public bool IsAlwaysLeaf { get; set; }
+
+        /// <summary>
+        /// Message to show if this Node is in an error state. This indicates
+        /// that children could be retrieved
+        /// </summary>
+        public string ErrorStateMessage { get; set; }
 
         /// <summary>
         /// Parent of this node
@@ -149,14 +159,30 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
         }
 
         /// <summary>
-        /// Gets a readonly view of the children for this node. 
+        /// Expands this node and returns its children
+        /// </summary>
+        /// <returns>Children as an IList. This is the raw children collection, not a copy</returns>
+        public IList<TreeNode> Expand()
+        {
+            // TODO consider why solution explorer has separate Children and Items options
+            if (children.IsInitialized)
+            {
+                return children;
+            }
+            PopulateChildren();
+            return children;
+        }
+
+        /// <summary>
+        /// Gets a readonly view of the currently defined children for this node. 
+        /// This does not expand the node at all
         /// Since the tree needs to keep track of parent relationships, directly 
-        /// adding to the list is not supported
+        /// adding to the list is not supported. 
         /// </summary>
         /// <returns><see cref="IList{TreeNode}"/> containing all children for this node</returns>
         public IList<TreeNode> GetChildren()
         {
-            return children.AsReadOnly();
+            return new ReadOnlyCollection<TreeNode>(children);
         }
 
         /// <summary>
@@ -169,8 +195,119 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes
             children.Add(newChild);
             newChild.Parent = this;
         }
-
-
         
+        /// <summary>
+        /// Optional context to help with lookup of children
+        /// </summary>
+        public virtual object GetContext()
+        {
+            return null;
+        }
+
+        /// <summary>
+        /// Helper method to convert context to expected format
+        /// </summary>
+        /// <typeparam name="T">Type to convert to</typeparam>
+        /// <returns>context as expected type of null if it doesn't match</returns>
+        public T GetContextAs<T>()
+            where T : class
+        {
+            return GetContext() as T;
+        }
+
+        public T ParentAs<T>()
+            where T : TreeNode
+        {
+            return Parent as T;
+        }
+        
+        protected void PopulateChildren()
+        {
+            Debug.Assert(IsAlwaysLeaf == false);
+
+            SmoQueryContext context = this.GetContextAs<SmoQueryContext>();
+
+            if (children.IsPopulating || context == null)
+                return;
+
+            children.Clear();
+            BeginChildrenInit();
+
+            try
+            {
+                IEnumerable<ChildFactory> childFactories = context.GetObjectExplorerService().GetApplicableChildFactories(this);
+                if (childFactories != null)
+                {
+                    foreach (var factory in childFactories)
+                    {
+                        IEnumerable<TreeNode> items = factory.Expand(this);
+                        if (items != null)
+                        {
+                            foreach (TreeNode item in items)
+                            {
+                                children.Add(item);
+                                item.Parent = this;
+
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                EndChildrenInit();
+            }
+        }
+
+        public void BeginChildrenInit()
+        {
+            children.BeginInit();
+        }
+
+        public void EndChildrenInit()
+        {
+            children.EndInit();
+            // TODO consider use of deferred children and if it's necessary
+            // children.EndInit(this, ref deferredChildren);
+        }
+
+
+        /// <summary>
+        /// Sort Priority to help when ordering elements in the tree
+        /// </summary>
+        public int? SortPriority { get; set; }
+
+        protected virtual int CompareSamePriorities(TreeNode thisItem, TreeNode otherItem)
+        {
+            return string.Compare(thisItem.NodeValue, otherItem.NodeValue, StringComparison.OrdinalIgnoreCase);
+        }
+        
+        public int CompareTo(TreeNode other)
+        {
+
+            if (!this.SortPriority.HasValue &&
+                !other.SortPriority.HasValue)
+            {
+                return CompareSamePriorities(this, other);
+            }
+
+            if (this.SortPriority.HasValue &&
+                !other.SortPriority.HasValue)
+            {
+                return -1; // this is above other
+            }
+            if (!this.SortPriority.HasValue)
+            {
+                return 1; // this is below other
+            }
+
+            // Both have sort priority
+            int priDiff = this.SortPriority.Value - other.SortPriority.Value;
+            if (priDiff < 0)
+                return -1; // this is below other
+            if (priDiff == 0)
+                return 0;
+            return 1;
+        }
     }
 }

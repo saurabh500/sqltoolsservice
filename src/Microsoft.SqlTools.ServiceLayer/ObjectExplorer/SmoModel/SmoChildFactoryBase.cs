@@ -5,8 +5,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using Microsoft.SqlServer.Management.Smo;
 using Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes;
+using Microsoft.SqlTools.ServiceLayer.Utility;
 
 namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 {
@@ -16,8 +19,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
         {
             return null;
         }
-
-
+        
         public override IEnumerable<TreeNode> Expand(TreeNode parent)
         {
             //parent.BeginChildrenInit();
@@ -52,8 +54,47 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
         /// <param name="parent">Parent the nodes are being added to</param>
         protected virtual void OnExpandPopulateNonFolders(IList<TreeNode> allChildren, TreeNode parent)
         {
+            if (ChildQuerierTypes == null)
+            {
+                // This node does not support non-folder children
+                return;
+            }
+            SmoQueryContext context = parent.GetContextAs<SmoQueryContext>();
+            Validate.IsNotNull(nameof(context), context);
+            IEnumerable<SmoQuerier> queriers = context.ServiceProvider.GetServices<SmoQuerier>(q => IsCompatibleQuerier(q));
+            foreach (var querier in queriers)
+            {
+                foreach(var smoObject in querier.Query(context))
+                {
+                    TreeNode childNode = CreateChild(parent, smoObject);
+                    if (childNode != null)
+                    {
+                        allChildren.Add(childNode);
+                    }
+                }
+            }
         }
 
+        private bool IsCompatibleQuerier(SmoQuerier querier)
+        {
+            if (ChildQuerierTypes == null)
+            {
+                return false;
+            }
+
+            Type actualType = querier.GetType();
+            foreach (Type childType in ChildQuerierTypes)
+            {
+                // We will accept any querier that is compatible with the listed querier type
+                if (childType.IsAssignableFrom(actualType))
+                {
+                    return true;
+                }
+            }
+            return false;
+
+        }
+        
         /// <summary>
         /// Filters out invalid folders if they cannot be displayed for the current server version
         /// </summary>
@@ -86,11 +127,23 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
             childAsMeItem.CacheInfoFromModel(smoObj);
         }
 
-        internal virtual Type[] TypesToReverse { 
+        internal virtual Type[] ChildQuerierTypes { 
             get
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Returns true if any final validation of the object to be added passes, and false
+        /// if validation fails. This provides a chance to filter specific items out of a list 
+        /// </summary>
+        /// <param name="parent"></param>
+        /// <param name="contextObject"></param>
+        /// <returns>boolean</returns>
+        public virtual bool PassesFinalFilters(TreeNode parent, object context)
+        {
+            return true;
         }
     }
 }

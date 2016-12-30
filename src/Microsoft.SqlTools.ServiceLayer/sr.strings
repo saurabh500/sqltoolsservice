@@ -167,6 +167,10 @@ WorkspaceServiceBufferPositionOutOfOrder(int sLine, int sCol, int eLine, int eCo
 ############################################################################
 # Object Explorer Service
 
+TreeNodeError = Error expanding: {0}
+
+ServerNodeConnectionError = Error connecting to {0}
+
 SchemaHierarchy_Aggregates = Aggregates
 
 SchemaHierarchy_ServerRoles = Server Roles
@@ -488,3 +492,11 @@ SchemaHierarchy_AlwaysEncryptedKeys = Always Encrypted Keys
 SchemaHierarchy_ColumnMasterKeys = Column Master Keys
 
 SchemaHierarchy_ColumnEncryptionKeys = Column Encryption Keys
+
+############################################################################
+# Extensibility
+ServiceAlreadyRegistered = Cannot register service for type {0}, one or more services already registered
+MultipleServicesFound = Multiple services found for type {0}, expected only 1
+IncompatibleServiceForExtensionLoader = Service of type {0} cannot be created by ExtensionLoader<{1}>
+ServiceProviderNotSet = SetServiceProvider() was not called to establish the required service provider
+ServiceNotFound = Service {0} was not found in the service provider

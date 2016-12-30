@@ -42,3 +42,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyInformationalVersion("1.0.0.0")]
 
 [assembly: InternalsVisibleTo("Microsoft.SqlTools.ServiceLayer.Test")]
+
+// Allowing internals visible access to Moq library to help testing
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]

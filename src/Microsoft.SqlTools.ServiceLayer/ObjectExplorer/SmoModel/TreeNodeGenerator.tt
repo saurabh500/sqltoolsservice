@@ -84,7 +84,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 		var isAlwaysLeaf = nodeElement.GetAttributeNode("IsAlwaysLeaf");
 		var baseClass = nodeElement.GetAttribute("BaseClass");
 		var strategy = nodeElement.GetAttribute("Strategy");
-		var typesToReverse = nodeElement.GetAttribute("TypesToReverse");
+		var ChildQuerierTypes = nodeElement.GetAttribute("ChildQuerierTypes");
 		var TreeNode = nodeElement.GetAttribute("TreeNode");
 		var isAsync = nodeElement.GetAttributeNode("IsAsyncLoad");
 		var disableSort = nodeElement.GetAttributeNode("DisableSort");
@@ -102,15 +102,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 			
 			WriteLine("    {");
  			WriteLine(string.Format("        public override IEnumerable<string> ApplicableParents() {{ return new[] {{ \"{0}\" }}; }}", type));
-
-			if (isAsync != null || !string.IsNullOrWhiteSpace(typesToReverse) )
-			{
-				WriteLine("");
-
-				// TODO Determine if we need AsyncLoad checks
- 				// WriteLine("        protected override bool IsAsyncLoad { get { return true; } }");
-			}
-
+			
 			List<XmlElement> children = GetChildren(xmlFile, type);
 			if (children.Count > 0)
 			{
@@ -135,21 +127,21 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 					}
 					else
 					{
-					    WriteLine("            currentChildren.Add(new SmoTreeNode {");
-						WriteLine(string.Format("                                                              NodeValue = {0},", childAsXmlElement.GetAttribute("LocLabel")));
-						WriteLine(string.Format("                                                              NodeType = \"{0}\",", child.GetAttribute("Name")));
-						WriteLine(string.Format("                                                              NodeTypeId = NodeTypes.{0},", child.GetAttribute("Name")));
+					    WriteLine("            currentChildren.Add(new FolderNode {");
+						WriteLine(string.Format("                NodeValue = {0},", childAsXmlElement.GetAttribute("LocLabel")));
+						WriteLine(string.Format("                NodeType = \"{0}\",", child.GetAttribute("Name")));
+						WriteLine(string.Format("                NodeTypeId = NodeTypes.{0},", child.GetAttribute("Name")));
 						
 						if (msShippedOwned != null)
 						{
-							WriteLine("                                                              IsMsShippedOwned = true,");
+							WriteLine("                IsMsShippedOwned = true,");
 						}
 						if (!string.IsNullOrWhiteSpace(validFor))
 						{
-							WriteLine(string.Format("                                                              ValidFor = {0},", GetValidForFlags(validFor)));
+							WriteLine(string.Format("                ValidFor = {0},", GetValidForFlags(validFor)));
 						}
-						WriteLine("                                                              SortPriority = SmoTreeNode.NextSortPriority,");
-					    WriteLine("                                                          });");
+						WriteLine("                SortPriority = SmoTreeNode.NextSortPriority,");
+					    WriteLine("            });");
 					}
 				}
 				WriteLine("        }");
@@ -157,13 +149,13 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 
 			if (!string.IsNullOrWhiteSpace(strategy))
 			{
-				string[] allTypes = typesToReverse.Split(new [] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+				string[] allTypes = ChildQuerierTypes.Split(new [] { ';' }, StringSplitOptions.RemoveEmptyEntries);
 				WriteLine("");
-				WriteLine("        internal override Type[] TypesToReverse");
+				WriteLine("        internal override Type[] ChildQuerierTypes");
 				WriteLine("        {");
 				WriteLine("           get");
 				WriteLine("           {");
-				if (!string.IsNullOrWhiteSpace(typesToReverse))
+				if (!string.IsNullOrWhiteSpace(ChildQuerierTypes))
 				{
 					Write("              return new [] {");
 					foreach (var typeToRe in allTypes)
@@ -180,21 +172,6 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 				WriteLine("        }");
 
 				WriteLine("");
-
-				if (strategy != "MultipleElementsOfType")
-				{
-				    // No use generating the default
-
-					// TODO Do we need reverse engineering differences?
-					//WriteLine("        protected override ReverseEngineeringStrategy Strategy");
-					//WriteLine("        {");
-					//WriteLine("           get");
-					//WriteLine("           {");
-					//WriteLine(string.Format("              return ReverseEngineeringStrategy.{0};", strategy));
-					//WriteLine("           }");
-					//WriteLine("        }");
-					//WriteLine("");
-				}
 				
 				WriteLine("        public override TreeNode CreateChild(TreeNode parent, object context)");
 				WriteLine("        {");
@@ -223,7 +200,7 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 			else if (baseClass == "ModelBased")
 			{
 				WriteLine("");
-				WriteLine("        internal override Type[] TypesToReverse { get {return null;} }");
+				WriteLine("        internal override Type[] ChildQuerierTypes { get {return null;} }");
 				WriteLine("");
 				// TODO Is reverse engineering strategy every needed?
 				// WriteLine("        protected override ReverseEngineeringStrategy Strategy { get {return ReverseEngineeringStrategy.None;} }");
@@ -234,8 +211,8 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 				WriteLine("        }");
 			}
 			
-			WriteLine("");
 			WriteLine("    }");
+			WriteLine("");
 		}
 	}
 #>

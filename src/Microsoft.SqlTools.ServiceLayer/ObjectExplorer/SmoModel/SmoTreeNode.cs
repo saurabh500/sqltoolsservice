@@ -10,27 +10,24 @@ using Microsoft.SqlTools.ServiceLayer.ObjectExplorer.Nodes;
 namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
 {
     /// <summary>
-    /// A Node in the tree representing a 
+    /// A Node in the tree representing a SMO-based object
     /// </summary>
     public class SmoTreeNode : TreeNode
     {
         public static int FolderSortPriority = 0;
         private static int _nextSortPriority = FolderSortPriority + 1; // 0 is reserved for folders
 
+        protected SmoQueryContext context;
+
         public SmoTreeNode() : base()
         {
         }
+
         protected virtual void OnInitialize()
         {
             // TODO setup initialization
         }
-
-
-        /// <summary>
-        /// Sort Priority to help when ordering elements in the tree
-        /// </summary>
-        public int? SortPriority { get; set; }
-
+        
         /// <summary>
         /// Is this a system (MSShipped) object?
         /// </summary>
@@ -40,13 +37,11 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
         /// Indicates which platforms a node is valid for
         /// </summary>
         public ValidForFlag ValidFor { get; set; }
-
+        
         /// <summary>
-        /// A SMO URN can be used to identify an element and retrieve it in the future, e.g. to query
-        /// its children.
+        /// Gets an incrementing sort priority value to assist in automatically sorting
+        /// elements in a tree
         /// </summary>
-        public string Urn { get; private set; }
-
         public static int NextSortPriority
         {
             get
@@ -55,10 +50,41 @@ namespace Microsoft.SqlTools.ServiceLayer.ObjectExplorer.SmoModel
             }
         }
 
+        public NamedSmoObject SmoObject { get; private set; }
+
         public virtual void CacheInfoFromModel(NamedSmoObject smoObject)
         {
+            SmoObject = smoObject;
             NodeValue = smoObject.Name;
-            Urn = smoObject.Urn;
+        }
+        
+        public virtual NamedSmoObject GetParentSmoObject()
+        {
+            if (SmoObject != null)
+            {
+                return SmoObject;
+            }
+            // Return the parent's object, or null if it's not set / not a SmoTreeNode
+            return ParentAs<SmoTreeNode>()?.GetParentSmoObject();
+        }
+
+        public override object GetContext()
+        {
+            EnsureContextInitialized();
+            return context;
+        }
+
+        protected virtual void EnsureContextInitialized()
+        {
+            if (context == null)
+            {
+                SmoObjectBase smoParent = ParentAs<SmoTreeNode>()?.SmoObject;
+                SmoQueryContext parentContext = Parent?.GetContextAs<SmoQueryContext>();
+                if (smoParent != null && parentContext != null)
+                {
+                    context = parentContext.CopyWithParent(smoParent);
+                }
+            }
         }
     }
 }

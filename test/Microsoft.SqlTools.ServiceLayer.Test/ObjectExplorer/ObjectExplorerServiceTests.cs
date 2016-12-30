@@ -19,7 +19,7 @@ using Xunit;
 namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
 {
 
-    public class ObjectExplorerServiceTests
+    public class ObjectExplorerServiceTests : ObjectExplorerTestBase
     {
         private ObjectExplorerService service;
         private Mock<ConnectionService> connectionServiceMock;
@@ -28,7 +28,7 @@ namespace Microsoft.SqlTools.ServiceLayer.Test.ObjectExplorer
         {
             connectionServiceMock = new Mock<ConnectionService>();
             serviceHostMock = new Mock<IProtocolEndpoint>();
-            service = new ObjectExplorerService(connectionServiceMock.Object);
+            service = CreateOEService(connectionServiceMock.Object);
             service.InitializeService(serviceHostMock.Object);
         }
 
