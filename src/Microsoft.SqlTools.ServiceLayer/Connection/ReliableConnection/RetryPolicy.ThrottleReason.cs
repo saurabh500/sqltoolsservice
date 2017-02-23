@@ -18,7 +18,6 @@ namespace Microsoft.SqlTools.ServiceLayer.Connection.ReliableConnection
         /// <summary>
         /// Implements an object holding the decoded reason code returned from SQL Azure when encountering throttling conditions.
         /// </summary>
-        [Serializable]
         public class ThrottlingReason
         {
             /// <summary>

@@ -10,7 +10,6 @@ namespace Microsoft.SqlTools.ServiceLayer.Connection.ReliableConnection
     /// <summary>
     /// Represents an error produced by SQL Server database schema provider
     /// </summary>
-    [Serializable]
     internal class SqlServerError : DataSchemaError
     {
         private const string SqlServerPrefix = "SQL";

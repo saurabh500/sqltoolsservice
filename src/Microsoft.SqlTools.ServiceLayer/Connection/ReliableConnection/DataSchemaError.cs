@@ -14,7 +14,6 @@ namespace Microsoft.SqlTools.ServiceLayer.Connection.ReliableConnection
     /// Errors and their children are expected to be thread-safe.  Ideally, this means that
     /// the objects are just data-transfer-objects initialized during construction.
     /// </summary>
-    [Serializable]
     internal class DataSchemaError
     {
         internal const string DefaultPrefix = "SQL";
