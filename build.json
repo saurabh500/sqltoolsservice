@@ -8,11 +8,11 @@
   "ArtifactsFolder": "artifacts",
   "TestProjects": {
     "Microsoft.SqlTools.ServiceLayer.Test": [
-      "netcoreapp1.0"
+      "netcoreapp2.0"
    ]
   },
   "Frameworks": [  
-    "netcoreapp1.0"
+    "netcoreapp2.0"
   ],
   "MainProject": "Microsoft.SqlTools.ServiceLayer"
 }

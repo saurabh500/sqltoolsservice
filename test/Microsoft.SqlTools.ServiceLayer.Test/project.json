@@ -16,13 +16,13 @@
   },
   "dependencies": {
     "Newtonsoft.Json": "9.0.1",
-    "System.Runtime.Serialization.Primitives": "4.1.1",
-    "System.Data.Common": "4.1.0",
-    "System.Data.SqlClient": "4.4.0-sqltools-24613-04",
+    "System.Runtime.Serialization.Primitives": "4.4.0-beta-*",
+    "System.Data.Common": "4.4.0-beta-*",
+    "System.Data.SqlClient": "4.4.0-beta-25017-03",
     "Microsoft.SqlServer.Smo": "140.1.12",
-    "System.Security.SecureString": "4.0.0",
-    "System.Collections.Specialized": "4.0.1",
-    "System.ComponentModel.TypeConverter": "4.1.0",
+    "System.Security.SecureString": "4.4.0-beta-*",
+    "System.Collections.Specialized": "4.4.0-beta-*",
+    "System.ComponentModel.TypeConverter": "4.4.0-beta-*",
     "xunit": "2.1.0",
     "dotnet-test-xunit": "1.0.0-rc2-192208-24",
     "Microsoft.SqlTools.ServiceLayer": {
@@ -33,11 +33,11 @@
   },
   "testRunner": "xunit",
   "frameworks": {
-    "netcoreapp1.0": {
+    "netcoreapp2.0": {
       "dependencies": {
         "Microsoft.NETCore.App": {
           "type": "platform",
-          "version": "1.0.0"
+          "version": "2.0.0-beta-001607-00"
         }
       },
       "imports": [

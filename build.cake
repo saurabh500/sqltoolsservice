@@ -54,7 +54,7 @@ var buildPlan = JsonConvert.DeserializeObject<BuildPlan>(
 
 // Folders and tools
 var dotnetFolder = System.IO.Path.Combine(workingDirectory, buildPlan.DotNetFolder);
-var dotnetcli = buildPlan.UseSystemDotNetPath ? "dotnet" : System.IO.Path.Combine(System.IO.Path.GetFullPath(dotnetFolder), "dotnet");
+var dotnetcli = "E:\\work\\temp\\corefx\\Tools\\dotnetcli\\dotnet.exe";
 var toolsFolder = System.IO.Path.Combine(workingDirectory, buildPlan.BuildToolsFolder);
 
 var sourceFolder = System.IO.Path.Combine(workingDirectory, "src");
@@ -262,7 +262,6 @@ Task("TestCore")
 /// </summary>
 Task("Test")
     .IsDependentOn("Setup")
-	.IsDependentOn("SRGen")
     .IsDependentOn("CodeGen")
     .IsDependentOn("BuildTest")
     .Does(() =>
@@ -311,7 +310,6 @@ Task("Test")
 /// </summary>
 Task("OnlyPublish")
     .IsDependentOn("Setup")
-	.IsDependentOn("SRGen")
     .IsDependentOn("CodeGen")
     .Does(() =>
 {
